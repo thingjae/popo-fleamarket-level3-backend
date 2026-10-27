@@ -1,0 +1,165 @@
+// 포포 플리마켓 - DB 설계 (기획서 6장)
+// 회원 1:N 신청 N:1 마켓, 신청 N:M 장비(신청 장비), 신청 1:N 사진, 회원·마켓 1:N 문의
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN  // 주최측 운영진
+  SELLER // 셀러
+}
+
+enum ApplicationStatus {
+  PENDING  // 심사 대기
+  APPROVED // 승인
+  REJECTED // 거절
+  CANCELED // 취소 (셀러 취소 또는 입금 기한 지남)
+}
+
+enum PaymentStatus {
+  UNPAID           // 입금 대기
+  PAID             // 입금 확인
+  REFUND_PENDING   // 환불 예정
+  REFUNDED         // 환불 완료
+}
+
+enum CancelReason {
+  SELLER       // 셀러가 취소
+  PAYMENT_DUE  // 입금 기한 지나 자동 취소
+}
+
+enum InquiryStatus {
+  NEW  // 새 문의
+  DONE // 처리 완료
+}
+
+// 회원
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  role         Role          @default(SELLER)
+  name         String        // 활동명(가게 이름)
+  phone        String
+  createdAt    DateTime      @default(now()) @map("created_at")
+  applications Application[]
+  inquiries    Inquiry[]
+  photos       Photo[]
+
+  @@map("users")
+}
+
+// 마켓 (행사)
+model Market {
+  id           Int           @id @default(autoincrement())
+  title        String
+  neighborhood String        // 동네 (망원동 등)
+  place        String
+  address      String
+  eventDate    String        @map("event_date") // YYYY-MM-DD (한국 날짜)
+  startTime    String        @map("start_time") // HH:mm
+  endTime      String        @map("end_time")
+  totalBooths  Int           @map("total_booths")
+  baseFee      Int           @map("base_fee") // 부스 1개 기본비 (원)
+  autoApprove  Boolean       @default(false) @map("auto_approve")
+  description  String        @default("")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  applications Application[]
+  inquiries    Inquiry[]
+
+  @@index([eventDate])
+  @@map("markets")
+}
+
+// 장비 (주최측 보유)
+model Equipment {
+  id            Int                    @id @default(autoincrement())
+  name          String
+  unitPrice     Int                    @map("unit_price")
+  totalQuantity Int                    @map("total_quantity")
+  description   String                 @default("")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  rentals       ApplicationEquipment[]
+
+  @@map("equipment")
+}
+
+// 부스 신청
+model Application {
+  id            Int                    @id @default(autoincrement())
+  marketId      Int                    @map("market_id")
+  market        Market                 @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  sellerId      Int                    @map("seller_id")
+  seller        User                   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  boothCount    Int                    @map("booth_count")
+  keywords      String[]
+  memo          String                 @default("")
+  intro         String
+  saleLinks     String[]               @map("sale_links")
+  status        ApplicationStatus      @default(PENDING)
+  paymentStatus PaymentStatus          @default(UNPAID) @map("payment_status")
+  totalFee      Int                    @map("total_fee")
+  approvedAt    DateTime?              @map("approved_at")
+  paidAt        DateTime?              @map("paid_at")
+  canceledAt    DateTime?              @map("canceled_at")
+  cancelReason  CancelReason?          @map("cancel_reason")
+  rejectReason  String?                @map("reject_reason")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  equipment     ApplicationEquipment[]
+  photos        Photo[]
+
+  @@index([marketId, status])
+  @@index([sellerId])
+  @@map("applications")
+}
+
+// 신청 장비 (신청 N:M 장비)
+model ApplicationEquipment {
+  applicationId Int         @map("application_id")
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  equipmentId   Int         @map("equipment_id")
+  equipment     Equipment   @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+  quantity      Int
+  unitPrice     Int         @map("unit_price") // 신청 당시 대여료
+
+  @@id([applicationId, equipmentId])
+  @@map("application_equipment")
+}
+
+// 신청 사진. 먼저 올리고(applicationId 없음), 신청할 때 연결한다.
+model Photo {
+  id            Int          @id @default(autoincrement())
+  uploaderId    Int          @map("uploader_id")
+  uploader      User         @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  applicationId Int?         @map("application_id")
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  mimeType      String       @map("mime_type")
+  data          Bytes
+  sortOrder     Int          @default(0) @map("sort_order")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@index([applicationId])
+  @@map("application_photos")
+}
+
+// 문의
+model Inquiry {
+  id        Int           @id @default(autoincrement())
+  marketId  Int           @map("market_id")
+  market    Market        @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  sellerId  Int           @map("seller_id")
+  seller    User          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  content   String
+  status    InquiryStatus @default(NEW)
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@map("inquiries")
+}
