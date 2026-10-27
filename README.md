@@ -5,8 +5,9 @@
 
 > ⏳ **처음 접속이 느릴 수 있어요.** Render 무료 서버라 15분 동안 아무도 쓰지 않으면 잠들고, 다음 첫 요청에 1분 가까이 걸립니다. 고장이 아니에요.
 
-- 배포 주소: `https://popo-fleamarket-level3-backend.onrender.com` (배포 후 확정)
-- DB 연결 확인: 위 주소 뒤에 **`/health`**
+- 배포 주소: https://popo-fleamarket-level3-backend.onrender.com
+- 프론트엔드 화면: https://popo-fleamarket-level3-frontend.vercel.app
+- DB 연결 확인: https://popo-fleamarket-level3-backend.onrender.com/health
 - 프론트엔드 저장소: https://github.com/thingjae/popo-fleamarket-level3-frontend
 
 ## 기술
@@ -106,4 +107,4 @@ npm run check-rules                                                        # 로
 API_URL=https://popo-fleamarket-level3-backend.onrender.com npm run check-rules   # 배포 서버
 ```
 
-최근 결과: [로컬 47/47 통과](docs/check-rules-local.md)
+최근 결과: [배포 서버 47/47 통과](docs/check-rules-deployed.md) · [로컬 47/47 통과](docs/check-rules-local.md)
